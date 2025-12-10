@@ -18,7 +18,7 @@ import json
 import os
 from datetime import datetime, timedelta
 import re
-from base_news_scraper import BaseNewsScraper, ListPageType
+from .base_news_scraper import BaseNewsScraper, ListPageType
 
 
 class CLSNewsScraper(BaseNewsScraper):

@@ -4,11 +4,11 @@ import time
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from eastmoney_news_scraper import EastMoneyNewsScraper
-from cls_news_scraper import CLSNewsScraper
-from cls_headline_news_scraper import CLSHeadlineNewsScraper
-from jqka_news_scraper import JQKANewsScraper
-from wallstreetcn_news_scraper import WallStreetCNNewsScraper
+from scraper.eastmoney_news_scraper import EastMoneyNewsScraper
+from scraper.cls_news_scraper import CLSNewsScraper
+from scraper.cls_headline_news_scraper import CLSHeadlineNewsScraper
+from scraper.jqka_news_scraper import JQKANewsScraper
+from scraper.wallstreetcn_news_scraper import WallStreetCNNewsScraper
 from news_merger import NewsMerger
 import utils
 

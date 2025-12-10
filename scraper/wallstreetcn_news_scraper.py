@@ -9,7 +9,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 from datetime import datetime, timedelta
 import re
-from base_news_scraper import BaseNewsScraper, ListPageType
+from .base_news_scraper import BaseNewsScraper, ListPageType
 
 
 class WallStreetCNNewsScraper(BaseNewsScraper):

@@ -16,7 +16,7 @@ import time
 import json
 from datetime import datetime
 import re
-from base_news_scraper import BaseNewsScraper, ListPageType
+from .base_news_scraper import BaseNewsScraper, ListPageType
 from datetime import timedelta
 from abc import abstractmethod
 from selenium.webdriver.remote.webelement import WebElement
