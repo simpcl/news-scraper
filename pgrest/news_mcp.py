@@ -59,7 +59,7 @@ def get_latest_news(limit: int = 10) -> List[Dict]:
 
     query = f"""
     query {{
-      newsCollection(first: {limit}, orderBy: TIME_DESC) {{
+      newsCollection(first: {limit}) {{
         edges {{
           node {{
             id
@@ -76,14 +76,18 @@ def get_latest_news(limit: int = 10) -> List[Dict]:
 
     try:
         result = client.execute_query(query=query)
-        return extract_nodes_from_result(result)
+        nodes = extract_nodes_from_result(result)
+        # Sort by time descending (client-side sorting)
+        if nodes and "error" not in nodes[0]:
+            nodes.sort(key=lambda x: x.get('time', ''), reverse=True)
+        return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
 
 @mcp.tool()
 def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
-    """Get news by source
+    """Get news by source (client-side filtering)
 
     Args:
         source: News source name (e.g., 'BBC', 'CNN', 'Reuters')
@@ -99,9 +103,12 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
 
     client = get_client()
 
+    # Fetch more data for client-side filtering
+    fetch_limit = min(limit * 5, 100)
+
     query = f"""
     query {{
-      newsCollection(first: {limit}, orderBy: TIME_DESC, filter: {{source: {{equalTo: "{source}"}}}}) {{
+      newsCollection(first: {fetch_limit}) {{
         edges {{
           node {{
             id
@@ -118,14 +125,22 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
 
     try:
         result = client.execute_query(query=query)
-        return extract_nodes_from_result(result)
+        nodes = extract_nodes_from_result(result)
+
+        if nodes and "error" not in nodes[0]:
+            # Client-side filtering by source
+            filtered = [node for node in nodes if node.get('source') == source]
+            # Sort by time descending
+            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
+            return filtered[:limit]
+        return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
 
 @mcp.tool()
 def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
-    """Search news by keyword in title and content
+    """Search news by keyword in title and content (client-side filtering)
 
     Args:
         keyword: Keyword to search for
@@ -141,10 +156,12 @@ def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
 
     client = get_client()
 
-    # GraphQL uses like for case-insensitive search
+    # Fetch more data for client-side filtering
+    fetch_limit = min(limit * 5, 100)
+
     query = f"""
     query {{
-      newsCollection(first: {limit}, orderBy: TIME_DESC, filter: {{or: [{{title: {{like: "%{keyword}%"}}}}, {{content: {{like: "%{keyword}%"}}}}]}}) {{
+      newsCollection(first: {fetch_limit}) {{
         edges {{
           node {{
             id
@@ -161,7 +178,19 @@ def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
 
     try:
         result = client.execute_query(query=query)
-        return extract_nodes_from_result(result)
+        nodes = extract_nodes_from_result(result)
+
+        if nodes and "error" not in nodes[0]:
+            # Client-side filtering
+            keyword_lower = keyword.lower()
+            filtered = [
+                node for node in nodes
+                if keyword_lower in node.get('title', '').lower() or keyword_lower in node.get('content', '').lower()
+            ]
+            # Sort by time descending
+            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
+            return filtered[:limit]
+        return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -172,7 +201,7 @@ def get_news_by_time_range(
     end_time: str,
     limit: int = 100
 ) -> List[Dict]:
-    """Get news within a specific time range
+    """Get news within a specific time range (client-side filtering)
 
     Args:
         start_time: Start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
@@ -187,22 +216,14 @@ def get_news_by_time_range(
     if limit < 1:
         limit = 100
 
-    # Normalize time format
-    if len(start_time) == 10:
-        start_time += "T00:00:00.000Z"
-    elif len(start_time) == 19:
-        start_time = start_time.replace(" ", "T") + ".000Z"
-
-    if len(end_time) == 10:
-        end_time += "T23:59:59.999Z"
-    elif len(end_time) == 19:
-        end_time = end_time.replace(" ", "T") + ".999Z"
+    # For time range filtering, we need to fetch more data
+    fetch_limit = min(limit * 10, 500)
 
     client = get_client()
 
     query = f"""
     query {{
-      newsCollection(first: {limit}, orderBy: TIME_DESC, filter: {{time: {{greaterThanOrEqualTo: "{start_time}", lessThanOrEqualTo: "{end_time}"}}}}) {{
+      newsCollection(first: {fetch_limit}) {{
         edges {{
           node {{
             id
@@ -219,7 +240,43 @@ def get_news_by_time_range(
 
     try:
         result = client.execute_query(query=query)
-        return extract_nodes_from_result(result)
+        nodes = extract_nodes_from_result(result)
+
+        if nodes and "error" not in nodes[0]:
+            # Parse time range
+            from datetime import datetime
+
+            # Handle different time formats
+            if len(start_time) == 10:
+                start_dt = datetime.strptime(start_time, "%Y-%m-%d")
+            elif len(start_time) == 19:
+                start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+            else:
+                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+
+            if len(end_time) == 10:
+                end_dt = datetime.strptime(end_time, "%Y-%m-%d")
+            elif len(end_time) == 19:
+                end_dt = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+            else:
+                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+
+            # Client-side filtering by time range
+            filtered = []
+            for node in nodes:
+                node_time = node.get('time')
+                if node_time:
+                    try:
+                        node_dt = datetime.fromisoformat(node_time.replace('Z', '+00:00'))
+                        if start_dt <= node_dt <= end_dt:
+                            filtered.append(node)
+                    except:
+                        continue
+
+            # Sort by time descending
+            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
+            return filtered[:limit]
+        return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -279,7 +336,7 @@ def advanced_search(
     end_time: Optional[str] = None,
     limit: int = 50
 ) -> List[Dict]:
-    """Advanced search with multiple filters
+    """Advanced search with multiple filters (client-side filtering)
 
     Args:
         keyword: Optional keyword to search for in title and content
@@ -296,39 +353,14 @@ def advanced_search(
     if limit < 1:
         limit = 50
 
-    # Build filter conditions
-    filter_conditions = []
-
-    if keyword:
-        filter_conditions.append(f'or: [{{title: {{like: "%{keyword}%"}}}}, {{content: {{like: "%{keyword}%"}}}}]')
-
-    if source:
-        filter_conditions.append(f'source: {{equalTo: "{source}"}}')
-
-    if start_time:
-        if len(start_time) == 10:
-            start_time += "T00:00:00.000Z"
-        elif len(start_time) == 19:
-            start_time = start_time.replace(" ", "T") + ".000Z"
-        filter_conditions.append(f'time: {{greaterThanOrEqualTo: "{start_time}"}}')
-
-    if end_time:
-        if len(end_time) == 10:
-            end_time += "T23:59:59.999Z"
-        elif len(end_time) == 19:
-            end_time = end_time.replace(" ", "T") + ".999Z"
-        filter_conditions.append(f'time: {{lessThanOrEqualTo: "{end_time}"}}')
-
-    # Combine filters
-    filter_str = ""
-    if filter_conditions:
-        filter_str = ", filter: {" + ", ".join(filter_conditions) + "}"
+    # Fetch more data for client-side filtering
+    fetch_limit = min(limit * 20, 500)
 
     client = get_client()
 
     query = f"""
     query {{
-      newsCollection(first: {limit}, orderBy: TIME_DESC{filter_str}) {{
+      newsCollection(first: {fetch_limit}) {{
         edges {{
           node {{
             id
@@ -345,7 +377,66 @@ def advanced_search(
 
     try:
         result = client.execute_query(query=query)
-        return extract_nodes_from_result(result)
+        nodes = extract_nodes_from_result(result)
+
+        if nodes and "error" not in nodes[0]:
+            filtered = nodes
+
+            # Apply keyword filter
+            if keyword:
+                keyword_lower = keyword.lower()
+                filtered = [
+                    node for node in filtered
+                    if keyword_lower in node.get('title', '').lower() or keyword_lower in node.get('content', '').lower()
+                ]
+
+            # Apply source filter
+            if source:
+                filtered = [node for node in filtered if node.get('source') == source]
+
+            # Apply time range filter
+            if start_time or end_time:
+                from datetime import datetime
+
+                if start_time:
+                    if len(start_time) == 10:
+                        start_dt = datetime.strptime(start_time, "%Y-%m-%d")
+                    elif len(start_time) == 19:
+                        start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+                    else:
+                        start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                else:
+                    start_dt = None
+
+                if end_time:
+                    if len(end_time) == 10:
+                        end_dt = datetime.strptime(end_time, "%Y-%m-%d")
+                    elif len(end_time) == 19:
+                        end_dt = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+                    else:
+                        end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+                else:
+                    end_dt = None
+
+                time_filtered = []
+                for node in filtered:
+                    node_time = node.get('time')
+                    if node_time:
+                        try:
+                            node_dt = datetime.fromisoformat(node_time.replace('Z', '+00:00'))
+                            if start_dt and node_dt < start_dt:
+                                continue
+                            if end_dt and node_dt > end_dt:
+                                continue
+                            time_filtered.append(node)
+                        except:
+                            continue
+                filtered = time_filtered
+
+            # Sort by time descending
+            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
+            return filtered[:limit]
+        return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -447,7 +538,7 @@ def get_top_sources(limit: int = 10) -> List[Dict]:
 
 @mcp.tool()
 def get_news_by_id(news_id: int) -> Optional[Dict]:
-    """Get a specific news item by its ID
+    """Get a specific news item by its ID (client-side filtering)
 
     Args:
         news_id: The ID of the news item
@@ -457,9 +548,12 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
     """
     client = get_client()
 
+    # Fetch a reasonable amount of data to find the ID
+    fetch_limit = 100
+
     query = f"""
     query {{
-      newsCollection(filter: {{id: {{equalTo: {news_id}}}}}) {{
+      newsCollection(first: {fetch_limit}) {{
         edges {{
           node {{
             id
@@ -468,8 +562,6 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
             source
             time
             content
-            createdAt
-            updatedAt
           }}
         }}
       }}
@@ -481,7 +573,11 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
-            return nodes[0] if nodes else None
+            # Client-side filtering by ID
+            for node in nodes:
+                if node.get('id') == news_id:
+                    return node
+            return None
         return None
 
     except Exception as e:
@@ -490,7 +586,7 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
 
 @mcp.tool()
 def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
-    """Get news titles only (lightweight query) by source
+    """Get news titles only (lightweight query) by source (client-side filtering)
 
     Args:
         source: News source name
@@ -506,14 +602,18 @@ def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
 
     client = get_client()
 
+    # Fetch more data for client-side filtering
+    fetch_limit = min(limit * 5, 100)
+
     query = f"""
     query {{
-      newsCollection(first: {limit}, orderBy: TIME_DESC, filter: {{source: {{equalTo: "{source}"}}}}) {{
+      newsCollection(first: {fetch_limit}) {{
         edges {{
           node {{
             id
             title
             time
+            source
           }}
         }}
       }}
@@ -522,7 +622,20 @@ def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
 
     try:
         result = client.execute_query(query=query)
-        return extract_nodes_from_result(result)
+        nodes = extract_nodes_from_result(result)
+
+        if nodes and "error" not in nodes[0]:
+            # Client-side filtering by source
+            filtered = [node for node in nodes if node.get('source') == source]
+            # Sort by time descending
+            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
+            # Return only id, title, time
+            result = [
+                {"id": n["id"], "title": n["title"], "time": n["time"]}
+                for n in filtered[:limit]
+            ]
+            return result
+        return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
