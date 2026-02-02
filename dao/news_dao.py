@@ -13,6 +13,7 @@ from typing import List, Dict, Optional, Tuple
 
 from db_config import get_connection_string, get_database_config
 
+
 class NewsDAO:
     """新闻数据访问类"""
 
@@ -37,6 +38,7 @@ class NewsDAO:
         except psycopg2.Error:
             # 数据库不存在或表不存在，运行初始化
             from db_init import init_database
+
             init_database(self.config)
 
     def _get_connection(self):
@@ -53,22 +55,32 @@ class NewsDAO:
                 cursor = conn.cursor()
 
                 # 检查URL是否已存在
-                cursor.execute("SELECT id FROM news WHERE url = %s", (news_data['url'],))
+                cursor.execute(
+                    "SELECT id FROM news WHERE url = %s", (news_data["url"],)
+                )
                 if cursor.fetchone():
                     print(f"新闻已存在，跳过: {news_data['title']}")
                     return False
 
                 # 插入新闻
-                cursor.execute('''
+                # 如果time不存在，使用当前时间
+                news_time = news_data.get("time")
+                if not news_time:
+                    news_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                cursor.execute(
+                    """
                     INSERT INTO news (title, url, source, time, content)
                     VALUES (%s, %s, %s, %s, %s)
-                ''', (
-                    news_data['title'],
-                    news_data['url'],
-                    news_data['source'],
-                    news_data['time'],
-                    news_data['content']
-                ))
+                """,
+                    (
+                        news_data["title"],
+                        news_data["url"],
+                        news_data["source"],
+                        news_time,
+                        news_data["content"],
+                    ),
+                )
 
                 conn.commit()
                 print(f"成功插入新闻: {news_data['title']}")
@@ -88,21 +100,29 @@ class NewsDAO:
             for news in news_list:
                 try:
                     # 检查URL是否已存在
-                    cursor.execute("SELECT id FROM news WHERE url = %s", (news['url'],))
+                    cursor.execute("SELECT id FROM news WHERE url = %s", (news["url"],))
                     if cursor.fetchone():
                         continue
 
                     # 插入新闻
-                    cursor.execute('''
+                    # 如果time不存在，使用当前时间
+                    news_time = news.get("time")
+                    if not news_time:
+                        news_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    cursor.execute(
+                        """
                         INSERT INTO news (title, url, source, time, content)
                         VALUES (%s, %s, %s, %s, %s)
-                    ''', (
-                        news['title'],
-                        news['url'],
-                        news['source'],
-                        news['time'],
-                        news['content']
-                    ))
+                    """,
+                        (
+                            news["title"],
+                            news["url"],
+                            news["source"],
+                            news_time,
+                            news["content"],
+                        ),
+                    )
 
                     success_count += 1
 
@@ -117,10 +137,10 @@ class NewsDAO:
     def load_from_json_file(self, json_file_path: str) -> int:
         """从JSON文件加载新闻到数据库"""
         try:
-            with open(json_file_path, 'r', encoding='utf-8') as f:
+            with open(json_file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
-            news_list = data.get('news_list', [])
+            news_list = data.get("news_list", [])
             return self.insert_news_batch(news_list)
 
         except FileNotFoundError:
@@ -136,12 +156,15 @@ class NewsDAO:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
 
-                cursor.execute('''
+                cursor.execute(
+                    """
                     SELECT * FROM news
                     WHERE source = %s
                     ORDER BY time DESC
                     LIMIT %s
-                ''', (source, limit))
+                """,
+                    (source, limit),
+                )
 
                 return [dict(row) for row in cursor.fetchall()]
 
@@ -166,11 +189,14 @@ class NewsDAO:
                 if len(end_time) == 10:  # 只有日期，没有时间
                     end_time += " 23:59:59"
 
-                cursor.execute('''
+                cursor.execute(
+                    """
                     SELECT * FROM news
                     WHERE time BETWEEN %s AND %s
                     ORDER BY time DESC
-                ''', (start_time, end_time))
+                """,
+                    (start_time, end_time),
+                )
 
                 return [dict(row) for row in cursor.fetchall()]
 
@@ -184,12 +210,15 @@ class NewsDAO:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
 
-                cursor.execute('''
+                cursor.execute(
+                    """
                     SELECT * FROM news
                     WHERE title LIKE %s OR content LIKE %s
                     ORDER BY time DESC
                     LIMIT %s
-                ''', (f'%{keyword}%', f'%{keyword}%', limit))
+                """,
+                    (f"%{keyword}%", f"%{keyword}%", limit),
+                )
 
                 return [dict(row) for row in cursor.fetchall()]
 
@@ -203,11 +232,14 @@ class NewsDAO:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
 
-                cursor.execute('''
+                cursor.execute(
+                    """
                     SELECT * FROM news
                     ORDER BY time DESC
                     LIMIT %s
-                ''', (limit,))
+                """,
+                    (limit,),
+                )
 
                 return [dict(row) for row in cursor.fetchall()]
 
@@ -221,12 +253,14 @@ class NewsDAO:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
 
-                cursor.execute('''
+                cursor.execute(
+                    """
                     SELECT source, COUNT(*) as count
                     FROM news
                     GROUP BY source
                     ORDER BY count DESC
-                ''')
+                """
+                )
 
                 return [dict(row) for row in cursor.fetchall()]
 
@@ -241,10 +275,13 @@ class NewsDAO:
                 cursor = conn.cursor()
 
                 # 使用 PostgreSQL 的 NOW() 和 INTERVAL 函数计算时间
-                cursor.execute('''
+                cursor.execute(
+                    """
                     DELETE FROM news
                     WHERE time < NOW() - INTERVAL '%s days'
-                ''', (days,))
+                """,
+                    (days,),
+                )
 
                 deleted_count = cursor.rowcount
                 conn.commit()
@@ -265,30 +302,32 @@ class NewsDAO:
                 cursor.execute("SELECT COUNT(*) as count FROM news")
                 result = cursor.fetchone()
 
-                return result['count'] if result else 0
+                return result["count"] if result else 0
 
         except psycopg2.Error as e:
             print(f"获取新闻总数失败: {e}")
             return 0
 
+
 def main():
     # 设置命令行参数解析
-    parser = argparse.ArgumentParser(description='新闻数据访问对象 (News DAO)')
+    parser = argparse.ArgumentParser(description="新闻数据访问对象 (News DAO)")
 
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    show_parser = subparsers.add_parser('show', help='Show database information')
+    show_parser = subparsers.add_parser("show", help="Show database information")
 
-    import_parser = subparsers.add_parser('import', help='导入新闻数据')
-    import_parser.add_argument('--json', nargs='?', default="",
-                       help='导入JSON文件路径 (如: news.json)')
+    import_parser = subparsers.add_parser("import", help="导入新闻数据")
+    import_parser.add_argument(
+        "--json", nargs="?", default="", help="导入JSON文件路径 (如: news.json)"
+    )
 
     args = parser.parse_args()
 
     config = None
     dao = NewsDAO(config)
 
-    if args.command and args.command == 'import':
+    if args.command and args.command == "import":
         if not args.json:
             print("请指定JSON文件路径")
             return
@@ -296,7 +335,7 @@ def main():
         # 从JSON文件导入数据
         count = dao.load_from_json_file(args.json)
         print(f"从JSON文件导入了 {count} 条新闻")
-    elif args.command and args.command == 'show':
+    elif args.command and args.command == "show":
         # 显示统计信息
         print(f"\n数据库中共有 {dao.get_total_count()} 条新闻")
 
@@ -311,6 +350,7 @@ def main():
             print(f"  {news['time']} - {news['title']} ({news['source']})")
     else:
         print("请选择要执行的命令")
+
 
 if __name__ == "__main__":
     main()
