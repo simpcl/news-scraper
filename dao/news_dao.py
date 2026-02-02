@@ -104,7 +104,8 @@ class NewsDAO:
                     if cursor.fetchone():
                         continue
 
-                    # 插入新闻
+                    if not news.get("content"):
+                        continue
                     # 如果time不存在，使用当前时间
                     news_time = news.get("time")
                     if not news_time:
