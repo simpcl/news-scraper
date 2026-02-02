@@ -19,12 +19,8 @@ def get_port_from_env(env_name, default_port):
 
     return port
 
-def save_to_json_file(result_data, datadir, filename):
-    try:
-        os.makedirs(datadir, exist_ok=True)
-        file_path = os.path.join(datadir, filename)
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(result_data, f, ensure_ascii=False, indent=2)
-        return file_path
-    except Exception as e:
-        return None
+def save_to_json_file(result_data, output_filepath):
+    datadir, filename = os.path.split(output_filepath)
+    os.makedirs(datadir, exist_ok=True)
+    with open(output_filepath, "w", encoding="utf-8") as f:
+        json.dump(result_data, f, ensure_ascii=False, indent=2)

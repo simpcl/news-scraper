@@ -4,13 +4,11 @@ import time
 from dotenv import load_dotenv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from scraper.eastmoney_news_scraper import EastMoneyNewsScraper
-from scraper.cls_news_scraper import CLSNewsScraper
-from scraper.cls_headline_news_scraper import CLSHeadlineNewsScraper
-from scraper.jqka_news_scraper import JQKANewsScraper
-from scraper.wallstreetcn_news_scraper import WallStreetCNNewsScraper
-from news_merger import NewsMerger
-import utils
+from eastmoney_news_scraper import EastMoneyNewsScraper
+from cls_news_scraper import CLSNewsScraper
+from cls_headline_news_scraper import CLSHeadlineNewsScraper
+from jqka_news_scraper import JQKANewsScraper
+from wallstreetcn_news_scraper import WallStreetCNNewsScraper
 
 
 class Cli:
@@ -62,7 +60,6 @@ class Cli:
 
         self._run_scrape_tasks(scrape_tasks, params["max_workers"])
 
-        self._merge_news_files()
     def _run_scrape_tasks(self, scrape_tasks, max_workers=3):
         print(f"开始并发抓取 {len(scrape_tasks)} 个网站的新闻...")
         successful_scrapes = []
@@ -98,26 +95,6 @@ class Cli:
             print(f"失败的网站: {', '.join(failed_scrapes)}")
         if not successful_scrapes:
             print("所有网站抓取都失败了")
-
-    def _merge_news_files(self) -> str:
-        print("开始合并 *_news.json 文件...")
-        try:
-            news_merger = NewsMerger()
-            merged_data = news_merger.merge_news_files()
-            if merged_data is None or "news_list" not in merged_data:
-                print("合并的数据为空")
-                return False
-            if len(merged_data["news_list"]) == 0:
-                print("没有找到可合并的数据")
-                return False
-
-            data_dir = os.environ.get("DATA_DIR", ".")
-            file_path = utils.save_to_json_file(merged_data, data_dir, "news_merged.json")
-            print(f"合并结果已保存到: {file_path}")
-        except Exception as e:
-            print(f"合并文件时发生错误: {e}")
-            return False
-        return True
 
     def _scrape_single_website(
         self, website: str, scraper_class, time_range: int, max_retry: int = 3
@@ -162,7 +139,7 @@ if __name__ == "__main__":
         "websites": ["东方财富网", "财联社", "财联社头条", "同花顺", "华尔街见闻"],
         "time_range": int(os.environ.get("TIME_RANGE", "1")),  # hours
         "max_workers": int(os.environ.get("MAX_WORKERS", "5")),
-        "max_retry": int(os.environ.get("MAX_RETRY", "3"))
+        "max_retry": int(os.environ.get("MAX_RETRY", "1"))
     }
 
     cli = Cli()

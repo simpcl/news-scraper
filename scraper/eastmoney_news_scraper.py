@@ -10,17 +10,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
-import time
-import json
 from datetime import datetime
 import re
-from .base_news_scraper import BaseNewsScraper, ListPageType
-from datetime import timedelta
-from abc import abstractmethod
-from selenium.webdriver.remote.webelement import WebElement
-
+from base_news_scraper import BaseNewsScraper, ListPageType
 
 class EastMoneyNewsScraper(BaseNewsScraper):
     def __init__(self, hours_ago=3):

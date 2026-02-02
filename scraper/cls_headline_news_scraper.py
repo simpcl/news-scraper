@@ -1,11 +1,9 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from abc import abstractmethod
-from .base_news_scraper import BaseNewsScraper, ListPageType
 import re
-from datetime import datetime
 
+from base_news_scraper import BaseNewsScraper, ListPageType
 
 class CLSHeadlineNewsScraper(BaseNewsScraper):
     def __init__(self, hours_ago=3):

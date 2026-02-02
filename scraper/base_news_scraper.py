@@ -9,11 +9,14 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import os
+import sys
 from abc import abstractmethod
 from datetime import datetime, timedelta
 from enum import Enum
 import traceback
-import utils
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import utils
 
 
 class ListPageType(Enum):
@@ -176,8 +179,8 @@ class BaseNewsScraper:
                 "total_count": len(news_list),
                 "news_list": news_list,
             }
-
-            return utils.save_to_json_file(result_data, self.data_dir, filename)
+            output_filepath = os.path.join(self.data_dir, filename)
+            return utils.save_to_json_file(result_data, output_filepath)
         except Exception as e:
             print(f"保存抓取文件失败: {e}")
             return None
