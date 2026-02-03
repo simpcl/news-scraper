@@ -1,72 +1,33 @@
 #!/usr/bin/env python3
 
-from pg_graphql import GraphQLClient
+import json
+
+from pg_graphql import execute_collection_query
 
 def interactive_query_news():
     print("\n\n=== Interactive News Query From PostgreSQL GraphQL ===")
     print("Type 'quit' to exit")
 
-    client = GraphQLClient()
-
     while True:
         try:
             print("\nPlease select an operation:")
-            print("1. Get latest news")
-            print("2. Get news by count")
-            print("3. Search news")
-            print("4. Exit")
+            print("1. Get news by count")
+            print("2. Search news")
+            print("3. Exit")
 
-            choice = input("\nPlease enter choice (1-4): ").strip()
+            choice = input("\nPlease enter choice (1-3): ").strip()
 
             if choice == "1":
-                print("\nGetting latest 5 news items...")
-                query = """
-                query {
-                  newsCollection(first: 5) {
-                    edges {
-                      node {
-                        id
-                        title
-                        url
-                        source
-                        time
-                      }
-                    }
-                  }
-                }
-                """
-
-                result = client.execute_query(query=query)
-                edges = result["data"]["newsCollection"]["edges"]
-
-                print(f"\nRetrieved {len(edges)} news items:")
-                for i, edge in enumerate(edges, 1):
-                    node = edge["node"]
-                    print(f"{i}. {node['title']}")
-                    print(f"   Source: {node['source']} | Time: {node['time']}")
-                    print()
-
-            elif choice == "2":
                 count = input("Please enter number of news items to get: ").strip()
                 if count.isdigit():
                     count = int(count)
-                    query = f"""
-                    query {{
-                      newsCollection(first: {count}) {{
-                        edges {{
-                          node {{
-                            id
-                            title
-                            url
-                            source
-                            time
-                          }}
-                        }}
-                      }}
-                    }}
-                    """
-
-                    result = client.execute_query(query=query)
+                    result_json = execute_collection_query(
+                        collection_name="news",
+                        fields=["id", "title", "url", "source", "time"],
+                        first=count,
+                        order_by={"time": "DescNullsLast"}
+                    )
+                    result = json.loads(result_json)
                     edges = result["data"]["newsCollection"]["edges"]
 
                     print(f"\nRetrieved {len(edges)} news items:")
@@ -78,27 +39,17 @@ def interactive_query_news():
                 else:
                     print("Please enter a valid number")
 
-            elif choice == "3":
+            elif choice == "2":
                 keyword = input("Please enter search keyword: ").strip()
                 if keyword:
                     print(f"\nSearching for news containing '{keyword}'...")
-                    query = """
-                    query {
-                      newsCollection(first: 100) {
-                        edges {
-                          node {
-                            id
-                            title
-                            url
-                            source
-                            time
-                          }
-                        }
-                      }
-                    }
-                    """
-
-                    result = client.execute_query(query=query)
+                    result_json = execute_collection_query(
+                        collection_name="news",
+                        fields=["id", "title", "url", "source", "time"],
+                        first=100,
+                        order_by={"time": "DescNullsLast"}
+                    )
+                    result = json.loads(result_json)
                     edges = result["data"]["newsCollection"]["edges"]
 
                     # Client-side filtering
@@ -119,7 +70,7 @@ def interactive_query_news():
                     else:
                         print(f"No news found containing '{keyword}'")
 
-            elif choice == "4":
+            elif choice == "3":
                 print("Exit")
                 break
 
