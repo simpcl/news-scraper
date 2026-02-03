@@ -8,13 +8,14 @@ def query_news():
     print("\n=== News Query From PostgreSQL GraphQL ===")
     print("\nGet latest 3 news items:\n")
 
-    # Example: Build news query
-    news_fields = ["id", "title", "url", "source", "time"]
-
     try:
-        result = json.loads(
-            execute_collection_query("news", fields=news_fields, first=3)
+        result_json = execute_collection_query(
+            collection_name="news",
+            fields=["id", "title", "url", "source", "time"],
+            first=3,
+            order_by={"time": "DescNullsLast"}
         )
+        result = json.loads(result_json)
         if "error" in result:
             print(f"✗ graphql_query tool failed: {result['error']}")
         else:

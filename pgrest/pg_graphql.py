@@ -33,7 +33,7 @@ except ImportError:
 
 
 # GraphQL API Configuration
-GRAPHQL_ENDPOINT = os.environ.get("GRAPHQL_ENDPOINT", "http://127.0.0.1:3001/rpc/graphql")
+GRAPHQL_ENDPOINT = os.environ.get("GRAPHQL_ENDPOINT", "http://127.0.0.1:18082/api/graphql")
 BASIC_AUTH_USERNAME = os.environ.get("BASIC_AUTH_USERNAME", "")
 BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "")
 
@@ -304,7 +304,7 @@ def execute_collection_query(
     fields: Optional[List[str]] = None,
     after: Optional[str] = None,
     where: Optional[str] = None,
-    order_by: Optional[str] = None,
+    order_by: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Execute collection query (generic query method)
@@ -315,7 +315,7 @@ def execute_collection_query(
         fields: List of fields to return (optional)
         after: Cursor pagination parameter (optional)
         where: GraphQL where condition (optional)
-        order_by: Sorting condition (optional)
+        order_by: Sorting condition as dict, e.g. {"time": "DescNullsLast"} (optional)
 
     Returns:
         JSON format query result
@@ -327,10 +327,34 @@ def execute_collection_query(
         fields += ["id"]
     fields_str = "\n        ".join(fields)
 
-    # query Get{collection_name.capitalize()}Collection($first: Int, $after: String) {{
+    # Build query arguments
+    query_args = []
+    variables = {}
+
+    # Always include first parameter
+    query_args.append("$first: Int")
+    variables["first"] = first
+
+    if after:
+        query_args.append("$after: String")
+        variables["after"] = after
+
+    if order_by:
+        # Use the correct enum type name format: {Collection}OrderBy
+        order_by_type = f"{collection_name.capitalize()}OrderBy"
+        query_args.append(f"$orderBy: {order_by_type}")
+        variables["orderBy"] = order_by
+
+    # Build collection arguments
+    collection_args = ["first: $first"]
+    if after:
+        collection_args.append("after: $after")
+    if order_by:
+        collection_args.append("orderBy: $orderBy")
+
     query = f"""
-    query {{
-      {collection_name}Collection(first: $first, after: $after) {{
+    query Query{collection_name.capitalize()}({", ".join(query_args)}) {{
+      {collection_name}Collection({", ".join(collection_args)}) {{
         edges {{
           node {{
             {fields_str}
@@ -346,10 +370,6 @@ def execute_collection_query(
       }}
     }}
     """
-
-    variables = {"first": first}
-    if after:
-        variables["after"] = after
 
     try:
         client = GraphQLClient()

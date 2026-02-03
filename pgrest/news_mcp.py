@@ -11,7 +11,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from fastmcp import FastMCP
 
-from pg_graphql import GraphQLClient
+from pg_graphql import GraphQLClient, execute_collection_query
 
 # Create MCP server instance
 mcp = FastMCP("News Query MCP Server")
@@ -55,32 +55,16 @@ def get_latest_news(limit: int = 10) -> List[Dict]:
     if limit < 1:
         limit = 10
 
-    client = get_client()
-
-    query = f"""
-    query {{
-      newsCollection(first: {limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            url
-            source
-            time
-            content
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
-        nodes = extract_nodes_from_result(result)
-        # Sort by time descending (client-side sorting)
-        if nodes and "error" not in nodes[0]:
-            nodes.sort(key=lambda x: x.get('time', ''), reverse=True)
-        return nodes
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=limit,
+            fields=["title", "url", "source", "time", "content"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
+        return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -101,37 +85,23 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
     if limit < 1:
         limit = 10
 
-    client = get_client()
-
     # Fetch more data for client-side filtering
     fetch_limit = min(limit * 5, 100)
 
-    query = f"""
-    query {{
-      newsCollection(first: {fetch_limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            url
-            source
-            time
-            content
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["title", "url", "source", "time", "content"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
             # Client-side filtering by source
             filtered = [node for node in nodes if node.get('source') == source]
-            # Sort by time descending
-            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
             return filtered[:limit]
         return nodes
     except Exception as e:
@@ -154,30 +124,18 @@ def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
     if limit < 1:
         limit = 10
 
-    client = get_client()
-
     # Fetch more data for client-side filtering
     fetch_limit = min(limit * 5, 100)
 
-    query = f"""
-    query {{
-      newsCollection(first: {fetch_limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            url
-            source
-            time
-            content
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["title", "url", "source", "time", "content"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
@@ -187,8 +145,6 @@ def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
                 node for node in nodes
                 if keyword_lower in node.get('title', '').lower() or keyword_lower in node.get('content', '').lower()
             ]
-            # Sort by time descending
-            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
             return filtered[:limit]
         return nodes
     except Exception as e:
@@ -219,27 +175,15 @@ def get_news_by_time_range(
     # For time range filtering, we need to fetch more data
     fetch_limit = min(limit * 10, 500)
 
-    client = get_client()
-
-    query = f"""
-    query {{
-      newsCollection(first: {fetch_limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            url
-            source
-            time
-            content
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["title", "url", "source", "time", "content"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
@@ -273,8 +217,6 @@ def get_news_by_time_range(
                     except:
                         continue
 
-            # Sort by time descending
-            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
             return filtered[:limit]
         return nodes
     except Exception as e:
@@ -356,27 +298,15 @@ def advanced_search(
     # Fetch more data for client-side filtering
     fetch_limit = min(limit * 20, 500)
 
-    client = get_client()
-
-    query = f"""
-    query {{
-      newsCollection(first: {fetch_limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            url
-            source
-            time
-            content
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["title", "url", "source", "time", "content"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
@@ -433,8 +363,6 @@ def advanced_search(
                             continue
                 filtered = time_filtered
 
-            # Sort by time descending
-            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
             return filtered[:limit]
         return nodes
     except Exception as e:
@@ -452,24 +380,18 @@ def get_news_statistics() -> Dict:
         - latest_news_time: Timestamp of the latest news
         - oldest_news_time: Timestamp of the oldest news
     """
-    client = get_client()
-
-    # Get total count and time range
-    query = """
-    query {
-      newsCollection {
-        edges {
-          node {
-            time
-            source
-          }
-        }
-      }
-    }
-    """
+    # Use a large fetch limit to get all data for statistics
+    fetch_limit = 500
 
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["time", "source"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
 
         if "error" in result:
             return {"error": result["error"]}
@@ -546,30 +468,18 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
     Returns:
         News item details or None if not found
     """
-    client = get_client()
-
     # Fetch a reasonable amount of data to find the ID
     fetch_limit = 100
 
-    query = f"""
-    query {{
-      newsCollection(first: {fetch_limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            url
-            source
-            time
-            content
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["title", "url", "source", "time", "content"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
@@ -600,35 +510,23 @@ def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
     if limit < 1:
         limit = 20
 
-    client = get_client()
-
     # Fetch more data for client-side filtering
     fetch_limit = min(limit * 5, 100)
 
-    query = f"""
-    query {{
-      newsCollection(first: {fetch_limit}) {{
-        edges {{
-          node {{
-            id
-            title
-            time
-            source
-          }}
-        }}
-      }}
-    }}
-    """
-
     try:
-        result = client.execute_query(query=query)
+        # Use server-side sorting by time descending
+        result_json = execute_collection_query(
+            collection_name="news",
+            first=fetch_limit,
+            fields=["title", "time", "source"],
+            order_by={"time": "DescNullsLast"}
+        )
+        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
             # Client-side filtering by source
             filtered = [node for node in nodes if node.get('source') == source]
-            # Sort by time descending
-            filtered.sort(key=lambda x: x.get('time', ''), reverse=True)
             # Return only id, title, time
             result = [
                 {"id": n["id"], "title": n["title"], "time": n["time"]}
