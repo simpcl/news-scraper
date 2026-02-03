@@ -61,7 +61,7 @@ class NewsMerger:
             print(f"找到 {len(json_files)} 个文件：")
             for file_path in json_files:
                 print(f"  - {os.path.basename(file_path)}")
-            merged_data = news_merger._merge_news_files(json_files)
+            merged_data = self._merge_news_files(json_files)
             if merged_data is None or "news_list" not in merged_data:
                 print("合并的数据为空")
                 return False
