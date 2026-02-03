@@ -120,7 +120,9 @@ class JQKANewsScraper(BaseNewsScraper):
             return title_text, link_url, source, news_time
 
     def parse_content(self):
-        content_body_element = self.driver.find_element(By.ID, "contentApp")
+        content_body_element = self.driver.find_element(
+            By.CSS_SELECTOR, "div.news-content-parsed"
+        )
         if content_body_element is None:
             raise Exception("content_body_element is None")
         content = content_body_element.text.strip()
