@@ -303,7 +303,7 @@ def execute_collection_query(
     first: int = 10,
     fields: Optional[List[str]] = None,
     after: Optional[str] = None,
-    where: Optional[str] = None,
+    filter: Optional[Dict[str, Any]] = None,
     order_by: Optional[Dict[str, str]] = None,
 ) -> str:
     """
@@ -314,7 +314,7 @@ def execute_collection_query(
         first: Number of records to return (default 10)
         fields: List of fields to return (optional)
         after: Cursor pagination parameter (optional)
-        where: GraphQL where condition (optional)
+        filter: GraphQL filter condition as dict, e.g. {"id": {"eq": 1}} or {"title": {"ilike": "%keyword%"}} (optional)
         order_by: Sorting condition as dict, e.g. {"time": "DescNullsLast"} (optional)
 
     Returns:
@@ -339,6 +339,12 @@ def execute_collection_query(
         query_args.append("$after: String")
         variables["after"] = after
 
+    if filter:
+        # Use the correct input type name format: {Collection}Filter
+        filter_type = f"{collection_name.capitalize()}Filter"
+        query_args.append(f"$filter: {filter_type}")
+        variables["filter"] = filter
+
     if order_by:
         # Use the correct enum type name format: {Collection}OrderBy
         order_by_type = f"{collection_name.capitalize()}OrderBy"
@@ -349,6 +355,8 @@ def execute_collection_query(
     collection_args = ["first: $first"]
     if after:
         collection_args.append("after: $after")
+    if filter:
+        collection_args.append("filter: $filter")
     if order_by:
         collection_args.append("orderBy: $orderBy")
 

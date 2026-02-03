@@ -43,29 +43,23 @@ def interactive_query_news():
                 keyword = input("Please enter search keyword: ").strip()
                 if keyword:
                     print(f"\nSearching for news containing '{keyword}'...")
+                    # Use filter condition for server-side filtering
                     result_json = execute_collection_query(
                         collection_name="news",
                         fields=["id", "title", "url", "source", "time"],
-                        first=100,
+                        first=10,
+                        filter={"title": {"ilike": f"%{keyword}%"}},
                         order_by={"time": "DescNullsLast"}
                     )
                     result = json.loads(result_json)
                     edges = result["data"]["newsCollection"]["edges"]
 
-                    # Client-side filtering
-                    filtered_news = []
-                    for edge in edges:
-                        node = edge["node"]
-                        if keyword.lower() in node["title"].lower():
-                            filtered_news.append(node)
-
-                    if filtered_news:
-                        print(f"\nFound {len(filtered_news)} related news:")
-                        for i, news in enumerate(
-                            filtered_news[:10], 1
-                        ):  # Show first 10
-                            print(f"{i}. {news['title']}")
-                            print(f"   Source: {news['source']} | Time: {news['time']}")
+                    if edges:
+                        print(f"\nFound {len(edges)} related news:")
+                        for i, edge in enumerate(edges, 1):
+                            node = edge["node"]
+                            print(f"{i}. {node['title']}")
+                            print(f"   Source: {node['source']} | Time: {node['time']}")
                             print()
                     else:
                         print(f"No news found containing '{keyword}'")
