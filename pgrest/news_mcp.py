@@ -71,7 +71,7 @@ def get_latest_news(limit: int = 10) -> List[Dict]:
 
 @mcp.tool()
 def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
-    """Get news by source (client-side filtering)
+    """Get news by source (server-side filtering)
 
     Args:
         source: News source name (e.g., 'BBC', 'CNN', 'Reuters')
@@ -85,68 +85,46 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
     if limit < 1:
         limit = 10
 
-    # Fetch more data for client-side filtering
-    fetch_limit = min(limit * 5, 100)
-
     try:
-        # Use server-side sorting by time descending
         result_json = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
+            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            filter={"source": {"eq": source}},
             order_by={"time": "DescNullsLast"}
         )
         result = json.loads(result_json)
-        nodes = extract_nodes_from_result(result)
-
-        if nodes and "error" not in nodes[0]:
-            # Client-side filtering by source
-            filtered = [node for node in nodes if node.get('source') == source]
-            return filtered[:limit]
-        return nodes
+        return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
 
 @mcp.tool()
 def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
-    """Search news by keyword in title and content (client-side filtering)
+    """Search news by keyword in title (server-side filtering)
 
     Args:
-        keyword: Keyword to search for
+        keyword: Keyword to search for in title
         limit: Maximum number of news items to return (default: 10, max: 100)
 
     Returns:
-        List of news items containing the keyword
+        List of news items containing the keyword in title
     """
     if limit > 100:
         limit = 100
     if limit < 1:
         limit = 10
 
-    # Fetch more data for client-side filtering
-    fetch_limit = min(limit * 5, 100)
-
     try:
-        # Use server-side sorting by time descending
         result_json = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
+            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            filter={"title": {"ilike": f"%{keyword}%"}},
             order_by={"time": "DescNullsLast"}
         )
         result = json.loads(result_json)
-        nodes = extract_nodes_from_result(result)
-
-        if nodes and "error" not in nodes[0]:
-            # Client-side filtering
-            keyword_lower = keyword.lower()
-            filtered = [
-                node for node in nodes
-                if keyword_lower in node.get('title', '').lower() or keyword_lower in node.get('content', '').lower()
-            ]
-            return filtered[:limit]
-        return nodes
+        return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -157,7 +135,7 @@ def get_news_by_time_range(
     end_time: str,
     limit: int = 100
 ) -> List[Dict]:
-    """Get news within a specific time range (client-side filtering)
+    """Get news within a specific time range (server-side filtering)
 
     Args:
         start_time: Start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
@@ -172,53 +150,17 @@ def get_news_by_time_range(
     if limit < 1:
         limit = 100
 
-    # For time range filtering, we need to fetch more data
-    fetch_limit = min(limit * 10, 500)
-
     try:
-        # Use server-side sorting by time descending
+        # Use server-side time range filtering
         result_json = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
+            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            filter={"time": {"gte": start_time, "lte": end_time}},
             order_by={"time": "DescNullsLast"}
         )
         result = json.loads(result_json)
-        nodes = extract_nodes_from_result(result)
-
-        if nodes and "error" not in nodes[0]:
-            # Parse time range
-            from datetime import datetime
-
-            # Handle different time formats
-            if len(start_time) == 10:
-                start_dt = datetime.strptime(start_time, "%Y-%m-%d")
-            elif len(start_time) == 19:
-                start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-            else:
-                start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-
-            if len(end_time) == 10:
-                end_dt = datetime.strptime(end_time, "%Y-%m-%d")
-            elif len(end_time) == 19:
-                end_dt = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-            else:
-                end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-
-            # Client-side filtering by time range
-            filtered = []
-            for node in nodes:
-                node_time = node.get('time')
-                if node_time:
-                    try:
-                        node_dt = datetime.fromisoformat(node_time.replace('Z', '+00:00'))
-                        if start_dt <= node_dt <= end_dt:
-                            filtered.append(node)
-                    except:
-                        continue
-
-            return filtered[:limit]
-        return nodes
+        return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -278,10 +220,10 @@ def advanced_search(
     end_time: Optional[str] = None,
     limit: int = 50
 ) -> List[Dict]:
-    """Advanced search with multiple filters (client-side filtering)
+    """Advanced search with multiple filters (server-side filtering)
 
     Args:
-        keyword: Optional keyword to search for in title and content
+        keyword: Optional keyword to search for in title
         source: Optional news source filter
         start_time: Optional start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
         end_time: Optional end time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
@@ -295,76 +237,34 @@ def advanced_search(
     if limit < 1:
         limit = 50
 
-    # Fetch more data for client-side filtering
-    fetch_limit = min(limit * 20, 500)
-
     try:
-        # Use server-side sorting by time descending
+        # Build filter conditions
+        filter_conditions = {}
+
+        if keyword:
+            filter_conditions["title"] = {"ilike": f"%{keyword}%"}
+
+        if source:
+            filter_conditions["source"] = {"eq": source}
+
+        if start_time or end_time:
+            time_filter = {}
+            if start_time:
+                time_filter["gte"] = start_time
+            if end_time:
+                time_filter["lte"] = end_time
+            filter_conditions["time"] = time_filter
+
+        # Execute query with combined filters
         result_json = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
+            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            filter=filter_conditions if filter_conditions else None,
             order_by={"time": "DescNullsLast"}
         )
         result = json.loads(result_json)
-        nodes = extract_nodes_from_result(result)
-
-        if nodes and "error" not in nodes[0]:
-            filtered = nodes
-
-            # Apply keyword filter
-            if keyword:
-                keyword_lower = keyword.lower()
-                filtered = [
-                    node for node in filtered
-                    if keyword_lower in node.get('title', '').lower() or keyword_lower in node.get('content', '').lower()
-                ]
-
-            # Apply source filter
-            if source:
-                filtered = [node for node in filtered if node.get('source') == source]
-
-            # Apply time range filter
-            if start_time or end_time:
-                from datetime import datetime
-
-                if start_time:
-                    if len(start_time) == 10:
-                        start_dt = datetime.strptime(start_time, "%Y-%m-%d")
-                    elif len(start_time) == 19:
-                        start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
-                    else:
-                        start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-                else:
-                    start_dt = None
-
-                if end_time:
-                    if len(end_time) == 10:
-                        end_dt = datetime.strptime(end_time, "%Y-%m-%d")
-                    elif len(end_time) == 19:
-                        end_dt = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S")
-                    else:
-                        end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
-                else:
-                    end_dt = None
-
-                time_filtered = []
-                for node in filtered:
-                    node_time = node.get('time')
-                    if node_time:
-                        try:
-                            node_dt = datetime.fromisoformat(node_time.replace('Z', '+00:00'))
-                            if start_dt and node_dt < start_dt:
-                                continue
-                            if end_dt and node_dt > end_dt:
-                                continue
-                            time_filtered.append(node)
-                        except:
-                            continue
-                filtered = time_filtered
-
-            return filtered[:limit]
-        return nodes
+        return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
@@ -460,7 +360,7 @@ def get_top_sources(limit: int = 10) -> List[Dict]:
 
 @mcp.tool()
 def get_news_by_id(news_id: int) -> Optional[Dict]:
-    """Get a specific news item by its ID (client-side filtering)
+    """Get a specific news item by its ID (server-side filtering)
 
     Args:
         news_id: The ID of the news item
@@ -468,26 +368,18 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
     Returns:
         News item details or None if not found
     """
-    # Fetch a reasonable amount of data to find the ID
-    fetch_limit = 100
-
     try:
-        # Use server-side sorting by time descending
         result_json = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
+            first=1,
             fields=["title", "url", "source", "time", "content"],
-            order_by={"time": "DescNullsLast"}
+            filter={"id": {"eq": news_id}}
         )
         result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
-        if nodes and "error" not in nodes[0]:
-            # Client-side filtering by ID
-            for node in nodes:
-                if node.get('id') == news_id:
-                    return node
-            return None
+        if nodes and "error" not in nodes[0] and len(nodes) > 0:
+            return nodes[0]
         return None
 
     except Exception as e:
@@ -496,7 +388,7 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
 
 @mcp.tool()
 def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
-    """Get news titles only (lightweight query) by source (client-side filtering)
+    """Get news titles only (lightweight query) by source (server-side filtering)
 
     Args:
         source: News source name
@@ -510,29 +402,22 @@ def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
     if limit < 1:
         limit = 20
 
-    # Fetch more data for client-side filtering
-    fetch_limit = min(limit * 5, 100)
-
     try:
-        # Use server-side sorting by time descending
         result_json = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
-            fields=["title", "time", "source"],
+            first=limit,
+            fields=["title", "time"],
+            filter={"source": {"eq": source}},
             order_by={"time": "DescNullsLast"}
         )
         result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
-            # Client-side filtering by source
-            filtered = [node for node in nodes if node.get('source') == source]
-            # Return only id, title, time
-            result = [
+            return [
                 {"id": n["id"], "title": n["title"], "time": n["time"]}
-                for n in filtered[:limit]
+                for n in nodes
             ]
-            return result
         return nodes
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
