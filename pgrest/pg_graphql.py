@@ -8,6 +8,7 @@ import json
 import urllib.request
 import urllib.error
 import os
+import base64
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
@@ -33,6 +34,8 @@ except ImportError:
 
 # GraphQL API Configuration
 GRAPHQL_ENDPOINT = os.environ.get("GRAPHQL_ENDPOINT", "http://127.0.0.1:3001/rpc/graphql")
+BASIC_AUTH_USERNAME = os.environ.get("BASIC_AUTH_USERNAME", "")
+BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "")
 
 class GraphQLClient:
     """PostgreSQL GraphQL API Client"""
@@ -64,6 +67,12 @@ class GraphQLClient:
         }
 
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
+
+        # Add Basic Authentication if credentials are provided
+        if BASIC_AUTH_USERNAME and BASIC_AUTH_PASSWORD:
+            credentials = f"{BASIC_AUTH_USERNAME}:{BASIC_AUTH_PASSWORD}"
+            encoded_credentials = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+            headers["Authorization"] = f"Basic {encoded_credentials}"
 
         try:
             # Prepare request data
