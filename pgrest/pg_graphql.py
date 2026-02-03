@@ -33,7 +33,7 @@ except ImportError:
 
 
 # GraphQL API Configuration
-GRAPHQL_ENDPOINT = os.environ.get("GRAPHQL_ENDPOINT", "http://127.0.0.1:18082/api/graphql")
+GRAPHQL_ENDPOINT = os.environ.get("GRAPHQL_ENDPOINT", "http://127.0.0.1:9782/rpc/graphql")
 BASIC_AUTH_USERNAME = os.environ.get("BASIC_AUTH_USERNAME", "")
 BASIC_AUTH_PASSWORD = os.environ.get("BASIC_AUTH_PASSWORD", "")
 

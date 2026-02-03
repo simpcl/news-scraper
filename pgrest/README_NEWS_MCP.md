@@ -21,8 +21,8 @@ News MCP Tools provides a standardized interface for AI assistants to query news
 
 **Key Benefits:**
 - No direct SQL queries - uses GraphQL API
-- Client-side filtering for flexibility
-- Automatic time-based sorting
+- Server-side filtering and sorting for optimal performance
+- Automatic time-based sorting (descending)
 - Basic Authentication support
 - 11 query tools + 3 data resources
 - Easy integration with Claude Desktop and other MCP clients
@@ -33,8 +33,8 @@ News MCP Tools provides a standardized interface for AI assistants to query news
 - **3 Resources** for quick data access
 - **GraphQL API** based queries (no direct SQL)
 - **Basic Authentication** support for secure API access
-- **Client-side filtering** for flexible search capabilities
-- **Automatic sorting** by time (descending)
+- **Server-side filtering** using GraphQL filter syntax
+- **Server-side sorting** with `orderBy` parameter
 - **Comprehensive error handling**
 
 ## Installation
@@ -64,20 +64,22 @@ pip install fastmcp python-dotenv
 Create a `.env` file in your project root:
 
 ```bash
-# GraphQL API endpoint (default: http://127.0.0.1:3001/rpc/graphql)
-GRAPHQL_ENDPOINT=http://127.0.0.1:3001/rpc/graphql
+# GraphQL API endpoint (default: http://127.0.0.1:9782/rpc/graphql)
+GRAPHQL_ENDPOINT=http://127.0.0.1:9782/rpc/graphql
 
-# Basic Authentication (optional)
+# Basic Authentication (optional, required if API is protected)
 BASIC_AUTH_USERNAME=your_username
 BASIC_AUTH_PASSWORD=your_password
 
-# PostgreSQL connection (used by pg_graphql)
+# PostgreSQL connection (optional, for direct database access)
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 POSTGRES_DB=news_scraper
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=password
 ```
+
+**Note:** The MCP server only requires `GRAPHQL_ENDPOINT`. The PostgreSQL connection variables are used by other tools in the pgrest module that need direct database access.
 
 ### Claude Desktop Configuration
 
@@ -90,7 +92,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
       "command": "python",
       "args": ["/path/to/news-scraper/pgrest/news_mcp.py"],
       "env": {
-        "GRAPHQL_ENDPOINT": "http://127.0.0.1:3001/rpc/graphql",
+        "GRAPHQL_ENDPOINT": "http://127.0.0.1:9782/rpc/graphql",
         "BASIC_AUTH_USERNAME": "your_username",
         "BASIC_AUTH_PASSWORD": "your_password"
       }
@@ -132,7 +134,7 @@ news = get_latest_news(limit=10)
 
 ### 2. get_news_by_source
 
-Filter news by source name.
+Filter news by source name (server-side filtering).
 
 **Parameters:**
 - `source` (str) - News source name (e.g., 'BBC', 'CNN', 'Reuters')
@@ -148,10 +150,10 @@ bbc_news = get_news_by_source("BBC", limit=20)
 
 ### 3. search_news_by_keyword
 
-Search for keyword in title and content.
+Search for keyword in title (server-side filtering).
 
 **Parameters:**
-- `keyword` (str) - Keyword to search for
+- `keyword` (str) - Keyword to search for in title
 - `limit` (int, default: 10, max: 100) - Maximum number of items
 
 **Example:**
@@ -164,7 +166,7 @@ ai_news = search_news_by_keyword("AI", limit=15)
 
 ### 4. get_news_by_time_range
 
-Get news within a specific time range.
+Get news within a specific time range (server-side filtering).
 
 **Parameters:**
 - `start_time` (str) - Start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
@@ -216,10 +218,10 @@ week_news = get_news_last_days(days=7, limit=100)
 
 ### 7. advanced_search
 
-Advanced search with multiple filters.
+Advanced search with multiple filters (server-side filtering).
 
 **Parameters:**
-- `keyword` (str, optional) - Keyword to search for
+- `keyword` (str, optional) - Keyword to search for in title
 - `source` (str, optional) - News source filter
 - `start_time` (str, optional) - Start time
 - `end_time` (str, optional) - End time
@@ -281,7 +283,7 @@ top_sources = get_top_sources(limit=10)
 
 ### 10. get_news_by_id
 
-Get a specific news item by its ID.
+Get a specific news item by its ID (server-side filtering).
 
 **Parameters:**
 - `news_id` (int) - The ID of the news item
@@ -298,7 +300,7 @@ news_item = get_news_by_id(123)
 
 ### 11. get_news_titles_by_source
 
-Lightweight query returning only titles by source.
+Lightweight query returning only titles by source (server-side filtering).
 
 **Parameters:**
 - `source` (str) - News source name
@@ -413,6 +415,7 @@ print(f"Found {len(results)} articles in January 2025")
 │     news_mcp.py             │
 │  - 11 Query Tools           │
 │  - 3 Resources              │
+│  - Server-side filtering    │
 └──────────────┬──────────────┘
                │
                ▼
@@ -421,12 +424,13 @@ print(f"Found {len(results)} articles in January 2025")
 │  (pg_graphql.py)            │
 │  - Basic Auth Support       │
 │  - HTTP Request Handler     │
+│  - execute_collection_query │
 └──────────────┬──────────────┘
                │ HTTP POST + GraphQL
                ▼
 ┌─────────────────────────────┐
 │  GraphQL API Endpoint       │
-│  http://localhost:3001/...  │
+│  http://localhost:9782/... │
 └──────────────┬──────────────┘
                │ pg_graphql
                ▼
@@ -441,11 +445,11 @@ print(f"Found {len(results)} articles in January 2025")
 
 ### GraphQL Query Structure
 
-All tools use GraphQL queries with this structure:
+All tools use GraphQL queries with server-side filtering and sorting:
 
 ```graphql
-query {
-  newsCollection(first: 10) {
+query GetNews($first: Int, $filter: NewsFilter, $orderBy: NewsOrderBy) {
+  newsCollection(first: $first, filter: $filter, orderBy: $orderBy) {
     edges {
       node {
         id
@@ -466,6 +470,64 @@ query {
   }
 }
 ```
+
+### Filter Syntax
+
+GraphQL filters use the following syntax:
+
+```python
+# Exact match
+filter = {"source": {"eq": "BBC"}}
+
+# Case-insensitive like search
+filter = {"title": {"ilike": "%AI%"}}
+
+# Greater than or equal
+filter = {"time": {"gte": "2025-01-01"}}
+
+# Less than or equal
+filter = {"time": {"lte": "2025-01-31"}}
+
+# Combined filters
+filter = {
+    "title": {"ilike": "%AI%"},
+    "source": {"eq": "BBC"},
+    "time": {"gte": "2025-01-01", "lte": "2025-01-31"}
+}
+```
+
+### Order By Syntax
+
+Server-side sorting using orderBy parameter:
+
+```python
+# Descending order with nulls last
+order_by = {"time": "DescNullsLast"}
+
+# Ascending order
+order_by = {"title": "AscNullsFirst"}
+```
+
+### execute_collection_query Helper
+
+All tools use the `execute_collection_query()` helper function from `pg_graphql.py`:
+
+```python
+def execute_collection_query(
+    collection_name: str,
+    first: int = 10,
+    fields: Optional[List[str]] = None,
+    after: Optional[str] = None,
+    filter: Optional[Dict[str, Any]] = None,
+    order_by: Optional[Dict[str, str]] = None,
+) -> str:
+```
+
+This function:
+- Builds GraphQL queries dynamically
+- Handles filter and orderBy parameters
+- Returns JSON formatted results
+- Automatically adds the `id` field to all queries
 
 ### Response Format
 
@@ -499,8 +561,15 @@ All tools handle errors gracefully:
 
 ```python
 try:
-    result = client.execute_query(query=query)
-    # Process result
+    result_json = execute_collection_query(
+        collection_name="news",
+        first=limit,
+        fields=["title", "url", "source", "time", "content"],
+        filter={"source": {"eq": source}},
+        order_by={"time": "DescNullsLast"}
+    )
+    result = json.loads(result_json)
+    return extract_nodes_from_result(result)
 except Exception as e:
     return [{"error": f"Query failed: {str(e)}"}]
 ```
@@ -529,7 +598,7 @@ headers = {
 3. Test GraphQL endpoint:
 
 ```bash
-curl -X POST http://127.0.0.1:3001/rpc/graphql \
+curl -X POST http://127.0.0.1:9782/rpc/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ __schema { queryType { name } } }"}'
 ```
@@ -544,7 +613,7 @@ curl -X POST http://127.0.0.1:3001/rpc/graphql \
 3. Test with curl:
 
 ```bash
-curl -X POST http://127.0.0.1:3001/rpc/graphql \
+curl -X POST http://127.0.0.1:9782/rpc/graphql \
   -H "Content-Type: application/json" \
   -H "Authorization: Basic <base64_credentials>" \
   -d '{"query": "{ __schema { queryType { name } } }"}'
@@ -572,17 +641,16 @@ python pgrest/example_usage.py
 npx @modelcontextprotocol/inspector python pgrest/news_mcp.py
 
 # Test GraphQL endpoint directly
-curl -X POST http://127.0.0.1:3001/rpc/graphql \
+curl -X POST http://127.0.0.1:9782/rpc/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ __type(name: \"news\") { name fields { name } } }"}'
 ```
 
 ## Limitations
 
-1. **Client-side filtering** - All filtering done in Python, not in database
-2. **Fetch limits** - Need to fetch larger datasets for accurate filtering
-3. **Performance** - Not optimized for very large datasets (>10k records)
-4. **GraphQL schema** - Limited to what pg_graphql provides
+1. **Fetch limits** - Statistics are calculated from a limited fetch (500 records)
+2. **GraphQL schema** - Limited to what pg_graphql provides
+3. **Filter complexity** - Complex nested filters may not be supported
 
 ## Best Practices
 
