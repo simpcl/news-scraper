@@ -183,7 +183,8 @@ class BaseNewsScraper:
                 "news_list": news_list,
             }
             output_filepath = os.path.join(self.data_dir, filename)
-            return utils.save_to_json_file(result_data, output_filepath)
+            utils.save_to_json_file(result_data, output_filepath)
+            return output_filepath
         except Exception as e:
             print(f"保存抓取文件失败: {e}")
             return None

@@ -97,7 +97,7 @@ class Cli:
             print("所有网站抓取都失败了")
 
     def _scrape_single_website(
-        self, website: str, scraper_class, time_range: int, max_retry: int = 3
+        self, website: str, scraper_class, time_range: int, max_retry: int = 1
     ) -> str:
         """
         抓取单个网站的新闻，支持重试机制
@@ -110,12 +110,11 @@ class Cli:
         for retry_count in range(max_retry + 1):  # +1 because we include the first attempt
             scraper = None
             try:
+                print(f"开始抓取 {website} 新闻...")
                 if retry_count > 0:
-                    print(f"开始第 {retry_count} 次重试 {website}...")
-                    # 重试前等待一段时间
-                    time.sleep(5 * retry_count)  # 递增等待时间：5秒, 10秒, 15秒...
-                else:
-                    print(f"开始抓取 {website} 新闻...")
+                    # 重试前等待一段时间，递增等待时间：5秒, 10秒, 15秒...
+                    time.sleep(5 * retry_count)
+                    print(f"开始抓取 {website} 新闻的第 {retry_count} 次重试 ...")
 
                 scraper = scraper_class(time_range)
                 filename = scraper.scrape_news()
@@ -137,7 +136,7 @@ if __name__ == "__main__":
     
     params = {
         "websites": ["东方财富网", "财联社", "财联社头条", "同花顺", "华尔街见闻"],
-        "time_range": int(os.environ.get("TIME_RANGE", "1")),  # hours
+        "time_range": int(os.environ.get("TIME_RANGE", "3")),  # hours
         "max_workers": int(os.environ.get("MAX_WORKERS", "5")),
         "max_retry": int(os.environ.get("MAX_RETRY", "1"))
     }
