@@ -28,6 +28,7 @@ class BaseNewsScraper:
     def __init__(self, hours_ago=3):
         self.news_after_time = datetime.now() - timedelta(hours=hours_ago)
         self.data_dir = os.environ.get("DATA_DIR", ".")
+        self.page_load_timeout = int(os.environ.get("SELENIUM_PAGE_LOAD_TIMEOUT", "30"))
         self.driver = None
         self.setup_driver()
 
@@ -80,7 +81,9 @@ class BaseNewsScraper:
             # 使用webdriver-manager自动管理ChromeDriver
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
-            print("Chrome浏览器驱动初始化成功 (无头模式)")
+            # Set page load timeout from environment variable
+            self.driver.set_page_load_timeout(self.page_load_timeout)
+            print(f"Chrome浏览器驱动初始化成功 (无头模式, 页面加载超时: {self.page_load_timeout}秒)")
         except Exception as e:
             print(f"初始化Chrome驱动失败: {e}")
             print("请确保已安装Chrome浏览器")
