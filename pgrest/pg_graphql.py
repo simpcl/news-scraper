@@ -300,9 +300,8 @@ def get_table_info(table_name: str) -> str:
 
 def execute_collection_query(
     collection_name: str,
-    first: int = 10,
     fields: Optional[List[str]] = None,
-    after: Optional[str] = None,
+    first: int = 10,
     filter: Optional[Dict[str, Any]] = None,
     order_by: Optional[Dict[str, str]] = None,
 ) -> str:
@@ -311,9 +310,8 @@ def execute_collection_query(
 
     Args:
         collection_name: Collection/table name
-        first: Number of records to return (default 10)
         fields: List of fields to return (optional)
-        after: Cursor pagination parameter (optional)
+        first: Number of records to return (default 10). If > 30, automatically paginates.
         filter: GraphQL filter condition as dict, e.g. {"id": {"eq": 1}} or {"title": {"ilike": "%keyword%"}} (optional)
         order_by: Sorting condition as dict, e.g. {"time": "DescNullsLast"} (optional)
 
@@ -329,59 +327,118 @@ def execute_collection_query(
 
     # Build query arguments
     query_args = []
-    variables = {}
+    base_variables = {}
 
-    # Always include first parameter
-    query_args.append("$first: Int")
-    variables["first"] = first
-
-    if after:
-        query_args.append("$after: String")
-        variables["after"] = after
-
+    # Filter and orderBy are used in all requests
     if filter:
-        # Use the correct input type name format: {Collection}Filter
         filter_type = f"{collection_name.capitalize()}Filter"
         query_args.append(f"$filter: {filter_type}")
-        variables["filter"] = filter
+        base_variables["filter"] = filter
 
     if order_by:
-        # Use the correct enum type name format: {Collection}OrderBy
         order_by_type = f"{collection_name.capitalize()}OrderBy"
         query_args.append(f"$orderBy: {order_by_type}")
-        variables["orderBy"] = order_by
+        base_variables["orderBy"] = order_by
 
-    # Build collection arguments
-    collection_args = ["first: $first"]
-    if after:
-        collection_args.append("after: $after")
-    if filter:
-        collection_args.append("filter: $filter")
-    if order_by:
-        collection_args.append("orderBy: $orderBy")
+    query_args.append("$first: Int")
+    query_args.append("$after: String")
 
-    query = f"""
-    query Query{collection_name.capitalize()}({", ".join(query_args)}) {{
-      {collection_name}Collection({", ".join(collection_args)}) {{
-        edges {{
-          node {{
-            {fields_str}
-          }}
-          cursor
-        }}
-        pageInfo {{
-          hasNextPage
-          hasPreviousPage
-          endCursor
-          startCursor
-        }}
-      }}
-    }}
-    """
+    client = GraphQLClient()
+
+    # Automatic pagination when first > 30
+    all_edges = []
+    current_after = None
+    remaining = first
+    page_size = 30
 
     try:
-        client = GraphQLClient()
-        result = client.execute_query(query=query, variables=variables)
-        return json.dumps(result, ensure_ascii=False, indent=2)
+        while remaining > 0:
+            # Determine the number of records to fetch in this batch
+            current_first = min(remaining, page_size)
+
+            variables = base_variables.copy()
+            variables["first"] = current_first
+            if current_after:
+                variables["after"] = current_after
+
+            collection_args = ["first: $first"]
+            if current_after:
+                collection_args.append("after: $after")
+            if filter:
+                collection_args.append("filter: $filter")
+            if order_by:
+                collection_args.append("orderBy: $orderBy")
+
+            query = f"""
+            query Query{collection_name.capitalize()}({", ".join(query_args)}) {{
+              {collection_name}Collection({", ".join(collection_args)}) {{
+                edges {{
+                  node {{
+                    {fields_str}
+                  }}
+                  cursor
+                }}
+                pageInfo {{
+                  hasNextPage
+                  hasPreviousPage
+                  endCursor
+                  startCursor
+                }}
+              }}
+            }}
+            """
+
+            result = client.execute_query(query=query, variables=variables)
+
+            # Check for errors
+            if "errors" in result:
+                return result
+                # return json.dumps(result, ensure_ascii=False, indent=2)
+
+            # Extract edges and pageInfo
+            if "data" not in result:
+                return result
+                # return json.dumps(result, ensure_ascii=False, indent=2)
+
+            collection_key = f"{collection_name}Collection"
+            if collection_key not in result["data"]:
+                return result
+                # return json.dumps(result, ensure_ascii=False, indent=2)
+
+            collection_data = result["data"][collection_key]
+            edges = collection_data.get("edges", [])
+            page_info = collection_data.get("pageInfo", {})
+
+            # Add edges to result
+            all_edges.extend(edges)
+            remaining -= len(edges)
+
+            # Check if we need to continue pagination
+            has_next_page = page_info.get("hasNextPage", False)
+            if not has_next_page or remaining <= 0:
+                break
+
+            # Update cursor for next request
+            current_after = page_info.get("endCursor")
+            if not current_after:
+                break
+
+        # Build final result
+        final_result = {
+            "data": {
+                collection_key: {
+                    "edges": all_edges,
+                    "pageInfo": {
+                        "hasNextPage": remaining > 0,
+                        "hasPreviousPage": False,
+                        "totalFetched": len(all_edges),
+                    }
+                }
+            }
+        }
+        return final_result
+        # return json.dumps(final_result, ensure_ascii=False, indent=2)
+
     except Exception as e:
-        return json.dumps({"error": str(e)}, ensure_ascii=False, indent=2)
+        return {"error": str(e)}
+        # return json.dumps({"error": str(e)}, ensure_ascii=False, indent=2)

@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Example: How to use the News Query Functions
-
-This example demonstrates how to use the GraphQL client to query news.
-This is the underlying implementation used by the News MCP Server.
-"""
 
 import sys
 import os
@@ -16,7 +10,6 @@ from typing import List, Dict
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import news_mcp
-
 
 def download_jsonfile_by_time_range(output_filepath, start_time_str, end_time_str, limit=10):
     try:
@@ -49,7 +42,21 @@ def show_latest_news(limit):
             print()
 
     except Exception as e:
-        print(f"download_jsonfile_by_time_range failed: {str(e)}")
+        print(f"show_latest_news failed: {str(e)}")
+
+def search_news_by_keyword(keyword, limit=30):
+    try:
+        print(f"Searching news by keyword {limit} with limit {limit}...")
+        news_list = news_mcp.search_news_by_keyword.fn(keyword, limit)
+        print(f"\n✓ Successfully searched {len(news_list)} news items:")
+        for i, news_item in enumerate(news_list, 1):
+            print(f"{i}  📰 {news_item['title']}")
+            print(f"   🔗 Link: {news_item['url']}")
+            print(f"   📰 Source: {news_item['source']}")
+            print(f"   ⏰ Time: {news_item['time']}")
+            print()
+    except Exception as e:
+        print(f"search_news_by_keyword failed: {str(e)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="News MCP Wrapper")
@@ -67,6 +74,13 @@ if __name__ == "__main__":
     show_latest_parser = subparsers.add_parser("show_latest", help="Show Latest News")
     show_latest_parser.add_argument(
         "--limit", nargs="?", default="10", help="News items limit (e.g.: 10)"
+    )
+    search_keyword_parser = subparsers.add_parser("search_keyword", help="Search News By Keyword")
+    search_keyword_parser.add_argument(
+        "--limit", nargs="?", default="10", help="News items limit (e.g.: 10)"
+    )
+    search_keyword_parser.add_argument(
+        "--keyword", nargs="?", default="10", help="Keyword (e.g.: AI)"
     )
 
     args = parser.parse_args()
@@ -88,10 +102,19 @@ if __name__ == "__main__":
             limit = int(args.limit)
             download_jsonfile_by_time_range(args.json, start_time_str, end_time_str, limit)
     elif args.command and args.command == "show_latest":
-        if not args.limit:
-            print("请指定limit")
+        if args.limit:
+            limit = int(args.limit)
+            show_latest_news(limit)
+        else:
+            show_latest_news()
+    elif args.command and args.command == "search_keyword":
+        keyword = ""
+        if not args.keyword:
+            print("invalid keyword")
             exit(-1)
-        limit = int(args.limit)
-        show_latest_news(limit)
+        limit = 10
+        if args.limit:
+            limit = int(args.limit)
+        search_news_by_keyword(args.keyword, limit)
     else:
         print("请选择要执行的命令")

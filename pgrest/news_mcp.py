@@ -57,13 +57,12 @@ def get_latest_news(limit: int = 10) -> List[Dict]:
 
     try:
         # Use server-side sorting by time descending
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            first=limit,
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
         return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
@@ -86,14 +85,13 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
         limit = 10
 
     try:
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            first=limit,
             filter={"source": {"eq": source}},
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
         return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
@@ -116,14 +114,13 @@ def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
         limit = 10
 
     try:
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            first=limit,
             filter={"title": {"ilike": f"%{keyword}%"}},
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
         return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
@@ -152,14 +149,13 @@ def get_news_by_time_range(
 
     try:
         # Use server-side time range filtering
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            first=limit,
             filter={"time": {"gte": start_time, "lte": end_time}},
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
         return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
@@ -256,14 +252,13 @@ def advanced_search(
             filter_conditions["time"] = time_filter
 
         # Execute query with combined filters
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=limit,
             fields=["title", "url", "source", "time", "content"],
+            first=limit,
             filter=filter_conditions if filter_conditions else None,
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
         return extract_nodes_from_result(result)
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
@@ -285,13 +280,12 @@ def get_news_statistics() -> Dict:
 
     try:
         # Use server-side sorting by time descending
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=fetch_limit,
             fields=["time", "source"],
+            first=fetch_limit,
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
 
         if "error" in result:
             return {"error": result["error"]}
@@ -369,13 +363,12 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
         News item details or None if not found
     """
     try:
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=1,
             fields=["title", "url", "source", "time", "content"],
+            first=1,
             filter={"id": {"eq": news_id}}
         )
-        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0] and len(nodes) > 0:
@@ -403,14 +396,13 @@ def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
         limit = 20
 
     try:
-        result_json = execute_collection_query(
+        result = execute_collection_query(
             collection_name="news",
-            first=limit,
             fields=["title", "time"],
+            first=limit,
             filter={"source": {"eq": source}},
             order_by={"time": "DescNullsLast"}
         )
-        result = json.loads(result_json)
         nodes = extract_nodes_from_result(result)
 
         if nodes and "error" not in nodes[0]:
