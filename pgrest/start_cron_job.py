@@ -8,7 +8,7 @@ import news_mcp_example
 def job(time_range):
     print("starting the cron job...")
 
-    output_filepath = "../data/all_news.json"
+    output_filepath = "../data/news_merged.json"
     end_time = datetime.now()
     start_time = end_time - timedelta(hours=time_range)
     start_time_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
