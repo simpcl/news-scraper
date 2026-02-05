@@ -45,13 +45,13 @@ def get_latest_news(limit: int = 10) -> List[Dict]:
     """Get the latest news from the database
 
     Args:
-        limit: Maximum number of news items to return (default: 10, max: 100)
+        limit: Maximum number of news items to return (default: 10, max: 120)
 
     Returns:
         List of news items with fields: id, title, url, source, time, content
     """
-    if limit > 100:
-        limit = 100
+    if limit > 120:
+        limit = 120
     if limit < 1:
         limit = 10
 
@@ -74,13 +74,13 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
 
     Args:
         source: News source name (e.g., 'BBC', 'CNN', 'Reuters')
-        limit: Maximum number of news items to return (default: 10, max: 100)
+        limit: Maximum number of news items to return (default: 10, max: 120)
 
     Returns:
         List of news items from the specified source
     """
-    if limit > 100:
-        limit = 100
+    if limit > 120:
+        limit = 120
     if limit < 1:
         limit = 10
 
@@ -100,14 +100,14 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
 def get_news_by_time_range(
     start_time: str,
     end_time: str,
-    limit: int = 100
+    limit: int = 120
 ) -> List[Dict]:
     """Get news within a specific time range (server-side filtering)
 
     Args:
         start_time: Start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
         end_time: End time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
-        limit: Maximum number of news items to return (default: 100, max: 500)
+        limit: Maximum number of news items to return (default: 120, max: 500)
 
     Returns:
         List of news items within the time range
@@ -115,7 +115,7 @@ def get_news_by_time_range(
     if limit > 500:
         limit = 500
     if limit < 1:
-        limit = 100
+        limit = 120
 
     try:
         # Use server-side time range filtering
@@ -132,11 +132,11 @@ def get_news_by_time_range(
 
 
 @mcp.tool()
-def get_news_today(limit: int = 50) -> List[Dict]:
+def get_news_today(limit: int = 30) -> List[Dict]:
     """Get news from today
 
     Args:
-        limit: Maximum number of news items to return (default: 50, max: 200)
+        limit: Maximum number of news items to return (default: 30, max: 200)
 
     Returns:
         List of today's news items
@@ -144,19 +144,19 @@ def get_news_today(limit: int = 50) -> List[Dict]:
     if limit > 200:
         limit = 200
     if limit < 1:
-        limit = 50
+        limit = 30
 
     today = datetime.now().strftime("%Y-%m-%d")
     return get_news_by_time_range(f"{today} 00:00:00", f"{today} 23:59:59", limit)
 
 
 @mcp.tool()
-def get_news_last_days(days: int = 7, limit: int = 100) -> List[Dict]:
+def get_news_last_days(days: int = 7, limit: int = 120) -> List[Dict]:
     """Get news from the last N days
 
     Args:
         days: Number of days to look back (default: 7)
-        limit: Maximum number of news items to return (default: 100, max: 500)
+        limit: Maximum number of news items to return (default: 120, max: 500)
 
     Returns:
         List of news items from the last N days
@@ -166,7 +166,7 @@ def get_news_last_days(days: int = 7, limit: int = 100) -> List[Dict]:
     if limit > 500:
         limit = 500
     if limit < 1:
-        limit = 100
+        limit = 120
 
     end_time = datetime.now()
     start_time = end_time - timedelta(days=days)
@@ -184,7 +184,7 @@ def advanced_search_news(
     source: Optional[str] = None,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
-    limit: int = 50,
+    limit: int = 30,
     with_content: bool = False
 ) -> List[Dict]:
     """Advanced search with multiple filters (server-side filtering)
@@ -194,7 +194,7 @@ def advanced_search_news(
         source: Optional news source filter
         start_time: Optional start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
         end_time: Optional end time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
-        limit: Maximum number of news items to return (default: 50, max: 200)
+        limit: Maximum number of news items to return (default: 30, max: 200)
         with_content: Whether to return to the news content
 
     Returns:
@@ -203,7 +203,7 @@ def advanced_search_news(
     if limit > 200:
         limit = 200
     if limit < 1:
-        limit = 50
+        limit = 30
 
     try:
         # Build filter conditions
@@ -310,13 +310,13 @@ def get_top_sources(limit: int = 10) -> List[Dict]:
     """Get top news sources by article count
 
     Args:
-        limit: Maximum number of sources to return (default: 10, max: 50)
+        limit: Maximum number of sources to return (default: 10, max: 60)
 
     Returns:
         List of sources with their article counts
     """
-    if limit > 50:
-        limit = 50
+    if limit > 60:
+        limit = 60
     if limit < 1:
         limit = 10
 
@@ -356,20 +356,20 @@ def get_news_by_id(news_id: int) -> Optional[Dict]:
 
 
 @mcp.tool()
-def get_news_titles_by_source(source: str, limit: int = 20) -> List[Dict]:
+def get_news_titles_by_source(source: str, limit: int = 30) -> List[Dict]:
     """Get news titles only (lightweight query) by source (server-side filtering)
 
     Args:
         source: News source name
-        limit: Maximum number of news items to return (default: 20, max: 100)
+        limit: Maximum number of news items to return (default: 30, max: 180)
 
     Returns:
         List of news with id, title, time only
     """
-    if limit > 100:
+    if limit > 180:
         limit = 100
     if limit < 1:
-        limit = 20
+        limit = 30
 
     try:
         result = execute_collection_query(
