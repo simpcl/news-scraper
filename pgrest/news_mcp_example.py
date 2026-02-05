@@ -46,8 +46,8 @@ def show_latest_news(limit):
 
 def search_news_by_keyword(keyword, limit=30):
     try:
-        print(f"Searching news by keyword {limit} with limit {limit}...")
-        news_list = news_mcp.search_news_by_keyword.fn(keyword, limit)
+        print(f"Searching news by keyword {keyword} with limit {limit}...")
+        news_list = news_mcp.advanced_search_news.fn(keyword=keyword, limit=limit)
         print(f"\n✓ Successfully searched {len(news_list)} news items:")
         for i, news_item in enumerate(news_list, 1):
             print(f"{i}  📰 {news_item['title']}")

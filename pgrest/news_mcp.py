@@ -96,36 +96,6 @@ def get_news_by_source(source: str, limit: int = 10) -> List[Dict]:
     except Exception as e:
         return [{"error": f"Query failed: {str(e)}"}]
 
-
-@mcp.tool()
-def search_news_by_keyword(keyword: str, limit: int = 10) -> List[Dict]:
-    """Search news by keyword in title (server-side filtering)
-
-    Args:
-        keyword: Keyword to search for in title
-        limit: Maximum number of news items to return (default: 10, max: 100)
-
-    Returns:
-        List of news items containing the keyword in title
-    """
-    if limit > 100:
-        limit = 100
-    if limit < 1:
-        limit = 10
-
-    try:
-        result = execute_collection_query(
-            collection_name="news",
-            fields=["title", "url", "source", "time", "content"],
-            first=limit,
-            filter={"title": {"ilike": f"%{keyword}%"}},
-            order_by={"time": "DescNullsLast"}
-        )
-        return extract_nodes_from_result(result)
-    except Exception as e:
-        return [{"error": f"Query failed: {str(e)}"}]
-
-
 @mcp.tool()
 def get_news_by_time_range(
     start_time: str,
@@ -209,12 +179,13 @@ def get_news_last_days(days: int = 7, limit: int = 100) -> List[Dict]:
 
 
 @mcp.tool()
-def advanced_search(
+def advanced_search_news(
     keyword: Optional[str] = None,
     source: Optional[str] = None,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
-    limit: int = 50
+    limit: int = 50,
+    with_content: bool = False
 ) -> List[Dict]:
     """Advanced search with multiple filters (server-side filtering)
 
@@ -224,6 +195,7 @@ def advanced_search(
         start_time: Optional start time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
         end_time: Optional end time in 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS' format
         limit: Maximum number of news items to return (default: 50, max: 200)
+        with_content: Whether to return to the news content
 
     Returns:
         List of news items matching all specified filters
@@ -251,10 +223,14 @@ def advanced_search(
                 time_filter["lte"] = end_time
             filter_conditions["time"] = time_filter
 
+        fields=["title", "url", "source", "time"]
+        if with_content:
+            fields += ["content"]
+
         # Execute query with combined filters
         result = execute_collection_query(
             collection_name="news",
-            fields=["title", "url", "source", "time", "content"],
+            fields=fields,
             first=limit,
             filter=filter_conditions if filter_conditions else None,
             order_by={"time": "DescNullsLast"}
