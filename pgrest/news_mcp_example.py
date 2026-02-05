@@ -15,21 +15,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from pg_graphql import GraphQLClient, execute_collection_query
 import news_mcp
 
-
-def extract_nodes_from_result(result: Dict) -> List[Dict]:
-    """Extract nodes from GraphQL query result"""
-    if "error" in result:
-        return [{"error": result["error"]}]
-    if "data" not in result:
-        return []
-    if "newsCollection" not in result["data"]:
-        return []
-
-    edges = result["data"]["newsCollection"]["edges"]
-    return [edge["node"] for edge in edges]
 
 def download_jsonfile_by_time_range(output_filepath, start_time_str, end_time_str, limit=10):
     try:
@@ -49,6 +36,21 @@ def download_jsonfile_by_time_range(output_filepath, start_time_str, end_time_st
     except Exception as e:
         print(f"download_jsonfile_by_time_range failed: {str(e)}")
 
+def show_latest_news(limit):
+    try:
+        print(f"Fetching last {limit} news...")
+        news_list = news_mcp.get_latest_news.fn(limit)
+        print(f"\n✓ Successfully retrieved {len(news_list)} news items:")
+        for i, news_item in enumerate(news_list, 1):
+            print(f"{i}  📰 {news_item['title']}")
+            print(f"   🔗 Link: {news_item['url']}")
+            print(f"   📰 Source: {news_item['source']}")
+            print(f"   ⏰ Time: {news_item['time']}")
+            print()
+
+    except Exception as e:
+        print(f"download_jsonfile_by_time_range failed: {str(e)}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="News MCP Wrapper")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -60,6 +62,10 @@ if __name__ == "__main__":
         "--last_hours", nargs="?", default="3", help="Last X hours (e.g.: 3)"
     )
     download_parser.add_argument(
+        "--limit", nargs="?", default="10", help="News items limit (e.g.: 10)"
+    )
+    show_latest_parser = subparsers.add_parser("show_latest", help="Show Latest News")
+    show_latest_parser.add_argument(
         "--limit", nargs="?", default="10", help="News items limit (e.g.: 10)"
     )
 
@@ -77,9 +83,15 @@ if __name__ == "__main__":
         end_time_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
 
         if not args.limit:
+            download_jsonfile_by_time_range(args.json, start_time_str, end_time_str)
+        else:
             limit = int(args.limit)
             download_jsonfile_by_time_range(args.json, start_time_str, end_time_str, limit)
-        else:
-            download_jsonfile_by_time_range(args.json, start_time_str, end_time_str)
+    elif args.command and args.command == "show_latest":
+        if not args.limit:
+            print("请指定limit")
+            exit(-1)
+        limit = int(args.limit)
+        show_latest_news(limit)
     else:
         print("请选择要执行的命令")
