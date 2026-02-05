@@ -29,7 +29,7 @@ News MCP Tools provides a standardized interface for AI assistants to query news
 
 ## Features
 
-- **11 Query Tools** for various news search scenarios
+- **10 Query Tools** for various news search scenarios
 - **3 Resources** for quick data access
 - **GraphQL API** based queries (no direct SQL)
 - **Basic Authentication** support for secure API access
@@ -148,23 +148,7 @@ bbc_news = get_news_by_source("BBC", limit=20)
 
 ---
 
-### 3. search_news_by_keyword
-
-Search for keyword in title (server-side filtering).
-
-**Parameters:**
-- `keyword` (str) - Keyword to search for in title
-- `limit` (int, default: 10, max: 100) - Maximum number of items
-
-**Example:**
-```python
-# Search for AI-related news
-ai_news = search_news_by_keyword("AI", limit=15)
-```
-
----
-
-### 4. get_news_by_time_range
+### 3. get_news_by_time_range
 
 Get news within a specific time range (server-side filtering).
 
@@ -185,7 +169,7 @@ jan_news = get_news_by_time_range(
 
 ---
 
-### 5. get_news_today
+### 4. get_news_today
 
 Get all news from today.
 
@@ -200,7 +184,7 @@ today_news = get_news_today(limit=50)
 
 ---
 
-### 6. get_news_last_days
+### 5. get_news_last_days
 
 Get news from the last N days.
 
@@ -216,7 +200,7 @@ week_news = get_news_last_days(days=7, limit=100)
 
 ---
 
-### 7. advanced_search
+### 6. advanced_search_news
 
 Advanced search with multiple filters (server-side filtering).
 
@@ -226,22 +210,24 @@ Advanced search with multiple filters (server-side filtering).
 - `start_time` (str, optional) - Start time
 - `end_time` (str, optional) - End time
 - `limit` (int, default: 50, max: 200) - Maximum number of items
+- `with_content` (bool, default: False) - Whether to return the news content
 
 **Example:**
 ```python
 # Search AI news from BBC in last 3 days
-results = advanced_search(
+results = advanced_search_news(
     keyword="AI",
     source="BBC",
     start_time="2025-01-12",
     end_time="2025-01-15",
-    limit=50
+    limit=50,
+    with_content=True
 )
 ```
 
 ---
 
-### 8. get_news_statistics
+### 7. get_news_statistics
 
 Get statistics about the news database.
 
@@ -266,7 +252,7 @@ print(f"Total articles: {stats['total_count']}")
 
 ---
 
-### 9. get_top_sources
+### 8. get_top_sources
 
 Get top news sources by article count.
 
@@ -281,7 +267,7 @@ top_sources = get_top_sources(limit=10)
 
 ---
 
-### 10. get_news_by_id
+### 9. get_news_by_id
 
 Get a specific news item by its ID (server-side filtering).
 
@@ -298,7 +284,7 @@ news_item = get_news_by_id(123)
 
 ---
 
-### 11. get_news_titles_by_source
+### 10. get_news_titles_by_source
 
 Lightweight query returning only titles by source (server-side filtering).
 
@@ -352,18 +338,19 @@ for i, news in enumerate(today_news, 1):
 ### Example 2: Topic Research
 
 ```python
-from pgrest.news_mcp import advanced_search
+from pgrest.news_mcp import advanced_search_news
 from datetime import datetime, timedelta
 
 # Search AI news from last week
 end_time = datetime.now()
 start_time = end_time - timedelta(days=7)
 
-results = advanced_search(
+results = advanced_search_news(
     keyword="AI",
     start_time=start_time.strftime("%Y-%m-%d"),
     end_time=end_time.strftime("%Y-%m-%d"),
-    limit=50
+    limit=50,
+    with_content=True
 )
 
 print(f"Found {len(results)} AI-related articles from last week")
@@ -413,7 +400,7 @@ print(f"Found {len(results)} articles in January 2025")
                ▼
 ┌─────────────────────────────┐
 │     news_mcp.py             │
-│  - 11 Query Tools           │
+│  - 10 Query Tools           │
 │  - 3 Resources              │
 │  - Server-side filtering    │
 └──────────────┬──────────────┘
@@ -661,4 +648,4 @@ curl -X POST http://127.0.0.1:9782/rpc/graphql \
 
 ## License
 
-MIT
+This project is licensed under the BSD 3-Clause License. See the main LICENSE file for details.
